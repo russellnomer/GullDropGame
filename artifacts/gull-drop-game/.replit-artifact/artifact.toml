@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "Gull Drop"
+description = "A first-person seagull sandbox game set above a parody Atlantic City boardwalk, with flight controls, targets, swarm actions, sound effects, and boardwalk radio."
+version = "1.0.0"
+id = "artifacts/gull-drop-game"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 25398
+
+[services.development]
+run = "pnpm --filter @workspace/gull-drop-game run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/gull-drop-game", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/gull-drop-game/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "25398"
+BASE_PATH = "/"
