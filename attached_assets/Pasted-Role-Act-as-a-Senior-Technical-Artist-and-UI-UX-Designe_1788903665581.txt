@@ -1,0 +1,31 @@
+Role: Act as a Senior Technical Artist and UI/UX Designer for a web-based 3D game.
+
+Objective: We need to overhaul the visual fidelity, UI, and comedic "game feel" of our game, Gull Drop. The game is a humorous 3D arcade game set in Atlantic City where you play as a seagull dropping poop on tourists, while dodging acorn fire from the "boardwalk squirrel mafia."
+
+Current State: The game currently looks like a basic 3D prototype with primitive geometry, flat materials, and a UI that looks like a corporate web dashboard (dark translucent HTML divs).
+
+Please generate the code to implement the following upgrades. Let's tackle them step-by-step:
+
+1. 3D Graphics & Lighting Polish (WebGL/Three.js):
+
+Lighting: Upgrade the lighting to a dramatic "Atlantic City Golden Hour." Add a strong directional light casting soft, realistic shadows (enable shadow maps). Add subtle ambient occlusion and environmental reflection so the ocean and casino windows glint in the sun.
+
+Materials: Convert basic flat materials to physically based rendering (PBR) materials where appropriate. The boardwalk should look like weathered wood; the casino buildings should have distinct brick and glass properties.
+
+Post-Processing: Add a slight bloom effect to the sun and neon signs, and a subtle depth-of-field to blur the distant ocean and focus on the immediate boardwalk action.
+
+2. UI/UX Overhaul (HTML/CSS):
+
+Theme: Replace all generic black/grey UI panels with a "gritty comedic boardwalk" theme. Use CSS to create textures like weathered wood, rusted metal, or tacky neon casino borders.
+
+Typography: Swap the clean sans-serif font for a bold, retro display font (like a vintage casino or mobster-style font) for headers, scores, and timers. Ensure a heavy text-stroke or drop shadow on all floating text (like "SHE'S ABOUT TO FINISH THE CONE") so it's readable against the sky.
+
+HUD Cleanup: Remove the solid black box behind text prompts. Make the "Drop / Flock" gauges much thicker, using high-contrast colors (toxic green and bright yellow) with a stylized border. Hide the "Boardwalk Radio" player during active gameplay, turning it into a transient toast notification when a song changes.
+
+3. Game Feel, "Juice", & Humor:
+
+Projectiles: Add exaggerated particle trails to the Mafia Squirrels' acorns so the player can clearly see and dodge them.
+
+Impacts: When the seagull successfully "drops" on a target, add a comedic, exaggerated splash particle effect and a satisfying score pop-up (e.g., "+50 DISRESPECT") that floats up and fades out.
+
+Camera: Add a slight camera shake effect when the gull is hit by an acorn or when pulling out of a steep dive.

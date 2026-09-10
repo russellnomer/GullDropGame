@@ -1,0 +1,2 @@
+- [Shared API routing](shared-api-routing.md) — Web artifacts can call the separate API artifact through same-origin `/api`; keep checkout on that route.
+- [Stripe fulfillment authority](stripe-fulfillment-authority.md) — Durable entitlement state, not Checkout's historical paid flag, controls access and revocation.
