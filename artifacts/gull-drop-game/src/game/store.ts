@@ -1,8 +1,23 @@
 import { create } from "zustand";
-import { equippedSkin, loadSave, rankFor, writeSave } from "./progress";
+import { equippedSkin, equippedWeapon, loadSave, rankFor, writeSave, type OfferId } from "./progress";
 import { jobList } from "./jobs";
+import { readChallenge, type Challenge } from "./challenge";
+import type { MafiaAction } from "./input";
 
 export type Phase = "menu" | "playing" | "paused" | "gameover";
+
+export type GameMode = "gull" | "mafia";
+
+export type MafiaStats = {
+  banked: number;
+  unbanked: number;
+  chain: number;
+  maxChain: number;
+  chainTimer: number;
+  acornCd: number;
+  prompt: string | null;
+  catWarning: boolean;
+};
 
 export type Callout = { id: number; title: string; pts: number };
 
@@ -14,6 +29,8 @@ export type RoundStats = {
   naps: number;
   balloons: number;
   feeders: number;
+  hotdogs: number;
+  dogWalkers: number;
   dogs: number;
   suits: number;
   pols: number;
@@ -25,6 +42,16 @@ export type RoundStats = {
 };
 
 const HS_KEY = "gull-drop-hs-v1";
+const MAFIA_HS_KEY = "gull-drop-mafia-hs-v1";
+
+function readMafiaHigh(): number {
+  try {
+    const n = Number(localStorage.getItem(MAFIA_HS_KEY) ?? "0");
+    return Number.isFinite(n) ? n : 0;
+  } catch {
+    return 0;
+  }
+}
 
 function readHigh(): number {
   try {
@@ -35,6 +62,17 @@ function readHigh(): number {
   }
 }
 
+const emptyMafiaStats = (): MafiaStats => ({
+  banked: 0,
+  unbanked: 0,
+  chain: 0,
+  maxChain: 0,
+  chainTimer: 0,
+  acornCd: 0,
+  prompt: null,
+  catWarning: false,
+});
+
 const emptyStats = (): RoundStats => ({
   hits: 0,
   custards: 0,
@@ -43,6 +81,8 @@ const emptyStats = (): RoundStats => ({
   naps: 0,
   balloons: 0,
   feeders: 0,
+  hotdogs: 0,
+  dogWalkers: 0,
   dogs: 0,
   suits: 0,
   pols: 0,
@@ -54,6 +94,9 @@ const emptyStats = (): RoundStats => ({
 });
 
 export type TouchState = {
+  interact: boolean;
+  joyX: number;
+  joyY: number;
   moveX: number;
   moveY: number;
   climb: number;
@@ -62,11 +105,18 @@ export type TouchState = {
   fire: boolean;
   swarm: boolean;
   level: boolean;
+  mafiaAction: MafiaAction | null;
 };
 
 type Patch = Partial<
   Pick<
     GameState,
+    | "mode"
+    | "mafiaStats"
+    | "mafiaHighScore"
+    | "highScore"
+    | "entitlements"
+    | "weaponId"
     | "score"
     | "combo"
     | "timeLeft"
@@ -91,6 +141,9 @@ type Patch = Partial<
     | "yaw"
     | "playerX"
     | "playerZ"
+    | "bombAimX"
+    | "bombAimY"
+    | "bombAimVisible"
     | "blips"
     | "flash"
     | "lifetime"
@@ -101,6 +154,10 @@ type Patch = Partial<
 >;
 
 type GameState = {
+  mode: GameMode;
+  mafiaHighScore: number;
+  mafiaStats: MafiaStats;
+  setMode: (m: GameMode) => void;
   phase: Phase;
   score: number;
   combo: number;
@@ -127,6 +184,9 @@ type GameState = {
   yaw: number;
   playerX: number;
   playerZ: number;
+  bombAimX: number;
+  bombAimY: number;
+  bombAimVisible: boolean;
   blips: Array<{ x: number; z: number; k: "player" | "sq" | "don" | "job" }>;
   flash: number;
   lifetime: number;
@@ -134,6 +194,7 @@ type GameState = {
   patron: boolean;
   inverted: boolean;
   skinId: string;
+  weaponId: string;
   handle: string;
   shopOpen: boolean;
   blotterOpen: boolean;
@@ -142,6 +203,11 @@ type GameState = {
   muted: boolean;
   radioOff: boolean;
   touch: TouchState;
+  challenge: Challenge | null;
+  entitlements: OfferId[];
+  setChallenge: (c: Challenge | null) => void;
+  grantOffer: (offer: OfferId) => void;
+  replaceEntitlements: (offers: OfferId[]) => void;
   start: () => void;
   pause: () => void;
   resume: () => void;
@@ -152,11 +218,13 @@ type GameState = {
   setBlotter: (v: boolean) => void;
   grantPatron: () => void;
   setSkin: (id: string) => void;
+  setWeapon: (id: string) => void;
   toggleMute: () => void;
   toggleRadio: () => void;
   setLocked: (v: boolean) => void;
   patch: (p: Patch) => void;
   setTouch: (p: Partial<TouchState>) => void;
+  resetInput: () => void;
   consumeLook: () => { x: number; y: number };
 };
 
@@ -164,6 +232,10 @@ export const useGame = create<GameState>((set, get) => {
   const save = typeof window !== "undefined" ? loadSave() : loadSave();
   const opener = jobList()[0];
   return {
+  mode: "gull",
+  setMode: (m) => set({ mode: m }),
+  mafiaHighScore: typeof window !== "undefined" ? readMafiaHigh() : 0,
+  mafiaStats: emptyMafiaStats(),
   phase: "menu",
   score: 0,
   combo: 0,
@@ -190,6 +262,9 @@ export const useGame = create<GameState>((set, get) => {
   yaw: 0,
   playerX: 0,
   playerZ: 0,
+  bombAimX: 50,
+  bombAimY: 78,
+  bombAimVisible: true,
   blips: [],
   flash: 0,
   lifetime: save.lifetime,
@@ -197,6 +272,7 @@ export const useGame = create<GameState>((set, get) => {
   patron: save.patron,
   inverted: false,
   skinId: equippedSkin(save).id,
+  weaponId: equippedWeapon(save).id,
   handle: save.handle,
   shopOpen: false,
   blotterOpen: false,
@@ -204,15 +280,42 @@ export const useGame = create<GameState>((set, get) => {
   howTo: false,
   muted: false,
   radioOff: typeof window !== "undefined" && localStorage.getItem("gull-drop-radio-off") === "1",
-  touch: { moveX: 0, moveY: 0, climb: 0, lookX: 0, lookY: 0, fire: false, swarm: false, level: false },
-  start: () =>
+  touch: { moveX: 0, moveY: 0, climb: 0, lookX: 0, lookY: 0, fire: false, swarm: false, level: false, interact: false, joyX: 0, joyY: 0, mafiaAction: null },
+  challenge: typeof window !== "undefined" ? readChallenge() : null,
+  entitlements: save.entitlements,
+  setChallenge: (c) => set({ challenge: c }),
+  grantOffer: (offer) => {
+    const current = loadSave();
+    const entitlements = Array.from(new Set([...current.entitlements, offer]));
+    const next = writeSave({
+      entitlements,
+      patron: current.patron || offer === "patron",
+      skin: offer === "founder" ? "contraband" : offer === "patron" ? "gold" : offer === "messy" ? "messy" : current.skin,
+    });
+    set({ entitlements: next.entitlements, patron: next.patron, skinId: equippedSkin(next).id, weaponId: equippedWeapon(next).id });
+  },
+  replaceEntitlements: (offers) => {
+    const current = loadSave();
+    const entitlements = Array.from(new Set(offers));
+    const next = writeSave({
+      entitlements,
+      patron: entitlements.includes("patron"),
+    });
+    const skinId = equippedSkin(next).id;
+    writeSave({ skin: skinId });
+    set({ entitlements, patron: next.patron, skinId });
+  },
+  start: () => {
+    const opener = jobList()[0];
+    const mode = get().mode;
     set({
+      mafiaStats: emptyMafiaStats(),
       phase: "playing",
       score: 0,
       combo: 0,
       timeLeft: 90,
       cooldown: 0,
-      alert: "THEY NEVER LOOK UP",
+      alert: mode === "mafia" ? "THE DON SENDS HIS REGARDS" : "THEY NEVER LOOK UP",
       callouts: [],
       stats: emptyStats(),
       frenzy: false,
@@ -229,33 +332,51 @@ export const useGame = create<GameState>((set, get) => {
       health: 3,
       grounded: false,
       elapsed: 0,
+      bombAimX: 50,
+      bombAimY: 78,
+      bombAimVisible: true,
       howTo: false,
       shopOpen: false,
       blotterOpen: false,
       inverted: false,
-    }),
+    });
+  },
   pause: () => {
     if (get().phase === "playing") set({ phase: "paused" });
   },
   resume: () => {
     if (get().phase === "paused") set({ phase: "playing" });
   },
-  end: () => {
-    const { score, highScore } = get();
+    end: () => {
+    const { score, highScore, mode, mafiaStats, mafiaHighScore } = get();
+    const mhs = Math.max(mafiaStats.banked, mafiaHighScore);
     const hs = Math.max(score, highScore);
-    try {
-      localStorage.setItem(HS_KEY, String(hs));
-    } catch {
-      /* ignore */
+
+    if (mode === "mafia") {
+      try { localStorage.setItem(MAFIA_HS_KEY, String(mhs)); } catch {
+        // Private browsing can deny storage; the completed round must still render.
+      }
+      const next = writeSave({ lifetime: loadSave().lifetime + mafiaStats.banked });
+      set({
+        phase: "gameover",
+        mafiaHighScore: mhs,
+        locked: false,
+        lifetime: next.lifetime,
+        rankName: rankFor(next.lifetime).name,
+      });
+    } else {
+      try { localStorage.setItem(HS_KEY, String(hs)); } catch {
+        // Private browsing can deny storage; the completed round must still render.
+      }
+      const next = writeSave({ lifetime: loadSave().lifetime + score });
+      set({
+        phase: "gameover",
+        highScore: hs,
+        locked: false,
+        lifetime: next.lifetime,
+        rankName: rankFor(next.lifetime).name,
+      });
     }
-    const next = writeSave({ lifetime: loadSave().lifetime + score });
-    set({
-      phase: "gameover",
-      highScore: hs,
-      locked: false,
-      lifetime: next.lifetime,
-      rankName: rankFor(next.lifetime).name,
-    });
   },
   toMenu: () =>
     set({
@@ -271,13 +392,15 @@ export const useGame = create<GameState>((set, get) => {
   setShop: (v) => set({ shopOpen: v, blotterOpen: v ? false : get().blotterOpen }),
   setBlotter: (v) => set({ blotterOpen: v, shopOpen: v ? false : get().shopOpen }),
   grantPatron: () => {
-    const next = writeSave({ patron: true, skin: "gold" });
-    set({ patron: true, skinId: "gold" });
-    void next;
+    get().grantOffer("patron");
   },
   setSkin: (id) => {
     const next = writeSave({ skin: id });
     set({ skinId: next.skin });
+  },
+  setWeapon: (id) => {
+    const next = writeSave({ weapon: id });
+    set({ weaponId: equippedWeapon(next).id });
   },
   toggleMute: () => set({ muted: !get().muted }),
   toggleRadio: () => {
@@ -292,6 +415,7 @@ export const useGame = create<GameState>((set, get) => {
   setLocked: (v) => set({ locked: v }),
   patch: (p) => set(p),
   setTouch: (p) => set({ touch: { ...get().touch, ...p } }),
+  resetInput: () => set({ touch: { lookX: 0, lookY: 0, moveX: 0, moveY: 0, level: false, fire: false, interact: false, swarm: false, climb: 0, joyX: 0, joyY: 0, mafiaAction: null } }),
   consumeLook: () => {
     const { lookX, lookY } = get().touch;
     if (lookX === 0 && lookY === 0) return { x: 0, y: 0 };
