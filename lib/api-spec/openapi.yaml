@@ -10,6 +10,8 @@ servers:
 tags:
   - name: health
     description: Health operations
+  - name: gull-drop
+    description: Secure commerce operations for Gull Drop
 paths:
   /healthz:
     get:
@@ -24,6 +26,102 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+  /gull-drop/checkout:
+    post:
+      operationId: createGullDropCheckout
+      tags: [gull-drop]
+      summary: Create a one-time Stripe Checkout session
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GullDropCheckoutInput"
+      responses:
+        "200":
+          description: Checkout created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GullDropCheckout"
+        "400":
+          description: Invalid request
+  /gull-drop/fulfillment:
+    get:
+      operationId: getGullDropFulfillment
+      tags: [gull-drop]
+      summary: Verify a paid Checkout session
+      parameters:
+        - in: query
+          name: sessionId
+          required: true
+          schema:
+            type: string
+            pattern: "^cs_"
+        - in: query
+          name: deviceId
+          required: true
+          schema:
+            type: string
+            minLength: 4
+            maxLength: 48
+            pattern: "^[A-Za-z0-9_-]+$"
+      responses:
+        "200":
+          description: Verified fulfillment state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GullDropFulfillment"
+        "400":
+          description: Invalid request
+  /gull-drop/leaderboard:
+    get:
+      operationId: listGullDropLeaderboard
+      tags: [gull-drop]
+      summary: List persisted Gull Drop rankings
+      parameters:
+        - in: query
+          name: mode
+          required: true
+          schema:
+            $ref: "#/components/schemas/GullDropLeaderboardMode"
+      responses:
+        "200":
+          description: Ranked scores
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/GullDropLeaderboardEntry"
+        "400":
+          description: Invalid mode
+    post:
+      operationId: submitGullDropScore
+      tags: [gull-drop]
+      summary: Submit a signed-in player's completed round
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GullDropScoreInput"
+      responses:
+        "201":
+          description: Score accepted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GullDropLeaderboardEntry"
+        "400":
+          description: Invalid or implausible round
+        "401":
+          description: Sign in required
+        "403":
+          description: Weapon is not owned
+        "429":
+          description: Too many submissions
 components:
   schemas:
     HealthStatus:
@@ -33,4 +131,102 @@ components:
           type: string
       required:
         - status
+    GullDropCheckoutInput:
+      type: object
+      additionalProperties: false
+      required: [origin, offer, deviceId]
+      properties:
+        origin:
+          type: string
+          format: uri
+        offer:
+          $ref: "#/components/schemas/GullDropOffer"
+        deviceId:
+          type: string
+          minLength: 4
+          maxLength: 48
+          pattern: "^[A-Za-z0-9_-]+$"
+        source:
+          type: string
+          maxLength: 32
+          pattern: "^[a-z0-9_-]*$"
+        creator:
+          type: string
+          maxLength: 32
+          pattern: "^[a-z0-9_-]*$"
+    GullDropCheckout:
+      type: object
+      required: [url]
+      properties:
+        url:
+          type: string
+          format: uri
+    GullDropFulfillment:
+      type: object
+      required: [paid, offer, amount]
+      properties:
+        paid:
+          type: boolean
+        offer:
+          $ref: "#/components/schemas/GullDropOffer"
+        amount:
+          type: integer
+          minimum: 0
+        source:
+          type: string
+        creator:
+          type: string
+    GullDropOffer:
+      type: string
+      enum: [messy, patron, founder]
+    GullDropLeaderboardMode:
+      type: string
+      enum: [classic, armed]
+    GullDropLeaderboardEntry:
+      type: object
+      additionalProperties: false
+      required: [id, handle, score, combo, mode, createdAt]
+      properties:
+        id:
+          type: integer
+        handle:
+          type: string
+        score:
+          type: integer
+        combo:
+          type: integer
+        mode:
+          $ref: "#/components/schemas/GullDropLeaderboardMode"
+        weapon:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+          format: date-time
+    GullDropScoreInput:
+      type: object
+      additionalProperties: false
+      required: [handle, score, combo, mode, durationMs]
+      properties:
+        handle:
+          type: string
+          minLength: 6
+          maxLength: 16
+          pattern: "^[A-Z0-9-]+$"
+        score:
+          type: integer
+          minimum: 1
+          maximum: 3000000
+        combo:
+          type: integer
+          minimum: 0
+          maximum: 500
+        mode:
+          $ref: "#/components/schemas/GullDropLeaderboardMode"
+        weapon:
+          type: string
+          enum: [street, messy, patron, fizz, founder]
+        durationMs:
+          type: integer
+          minimum: 5000
+          maximum: 95000
 
