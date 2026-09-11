@@ -392,6 +392,7 @@ function Hud() {
   const bombAimX = useGame((s) => s.bombAimX);
   const bombAimY = useGame((s) => s.bombAimY);
   const bombAimVisible = useGame((s) => s.bombAimVisible);
+  const bombAimLocked = useGame((s) => s.bombAimLocked);
 
   return (
     <>
@@ -503,11 +504,11 @@ function Hud() {
           style={{ left: `${bombAimX}%`, top: `${bombAimY}%` }}
           aria-label="Predicted poop impact point"
         >
-          <span className="absolute inset-1 rounded-full border-2 border-dashed border-[#f3e5ab] shadow-[0_0_8px_rgba(243,229,171,0.8)]" />
-          <span className="absolute top-1/2 left-0 h-px w-full bg-[#f3e5ab]/80" />
-          <span className="absolute top-0 left-1/2 h-full w-px bg-[#f3e5ab]/80" />
-          <span className="absolute top-full left-1/2 mt-1 -translate-x-1/2 whitespace-nowrap font-mono text-[9px] font-bold tracking-[0.18em] text-[#f3e5ab]">
-            DROP ZONE
+          <span className={`absolute inset-1 rounded-full border-2 border-dashed transition-all duration-100 ${bombAimLocked ? "scale-110 border-red-500 bg-red-500/20 shadow-[0_0_18px_5px_rgba(239,68,68,0.95)] animate-pulse" : "border-[#f3e5ab] shadow-[0_0_8px_rgba(243,229,171,0.8)]"}`} />
+          <span className={`absolute top-1/2 left-0 h-px w-full ${bombAimLocked ? "bg-red-400" : "bg-[#f3e5ab]/80"}`} />
+          <span className={`absolute top-0 left-1/2 h-full w-px ${bombAimLocked ? "bg-red-400" : "bg-[#f3e5ab]/80"}`} />
+          <span className={`absolute top-full left-1/2 mt-1 -translate-x-1/2 whitespace-nowrap font-mono text-[9px] font-bold tracking-[0.18em] ${bombAimLocked ? "text-red-400 text-stroke" : "text-[#f3e5ab]"}`}>
+            {bombAimLocked ? "DROP NOW" : "DROP ZONE"}
           </span>
         </div>
       )}

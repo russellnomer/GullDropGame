@@ -8,6 +8,7 @@
 - Refined the release pose from photo references with broad bracing wings, a lifted tail, tucked feet, and an irregular trailing stream.
 - Converted poop from a forward assisted projectile into a gravity-driven bomb that inherits the Gull's momentum, with a separate sight below the bird.
 - Replaced the fixed drop-zone marker with a projected impact reticle calculated from current altitude, velocity, gravity, and surface height.
+- Added a red “DROP NOW” target lock and limited horizontal correction when the predicted impact overlaps a valid target.
 - Added a brief body-lift pose when dropping for clearer comic action.
 - Made locked shots compensate for projectile gravity while unlocked shots follow the center reticle at a more usable speed.
 

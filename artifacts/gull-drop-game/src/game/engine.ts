@@ -276,6 +276,9 @@ export class GullDropGame {
   /** Brief rear-body lift used to make the drop action readable in chase view. */
   private poopPoseT = 0;
 
+  /** Current target beneath the predicted impact point for assisted release. */
+  private bombLock: { x: number; z: number; flightTime: number } | null = null;
+
   private flockCd = 0;
 
   private comboT = 0;
@@ -839,6 +842,7 @@ export class GullDropGame {
         bombAimX: bombAim.x,
         bombAimY: bombAim.y,
         bombAimVisible: bombAim.visible,
+        bombAimLocked: bombAim.locked,
         blips: this.mafia.list.filter((s) => s.alive).map((s) => ({ x: s.x, z: s.z, k: s.boss ? ("don" as const) : ("sq" as const) })),
         alert: this.alertT > 0 ? g.alert : null,
       });
@@ -865,7 +869,7 @@ export class GullDropGame {
   }
 
   /** Projects the current gravity-driven drop trajectory into HUD percentages. */
-  private projectBombImpact(): { x: number; y: number; visible: boolean } {
+  private projectBombImpact(): { x: number; y: number; visible: boolean; locked: boolean } {
     const rear = this._v1.set(0, 0, 1).applyQuaternion(this.orient);
     const down = this._v2.set(0, -1, 0).applyQuaternion(this.orient);
     const startX = this.x + rear.x * 0.46 + down.x * 0.34;
@@ -889,11 +893,29 @@ export class GullDropGame {
       groundY = this.shadeGround(impactX, startY, impactZ);
     }
 
+    let nearest: { x: number; z: number; distance: number } | null = null;
+    for (const npc of this.crowd.npcs) {
+      if (!npc.alive || npc.hit) continue;
+      const distance = Math.hypot(npc.x - impactX, npc.z - impactZ);
+      if (distance <= 2.35 && (!nearest || distance < nearest.distance)) {
+        nearest = { x: npc.x, z: npc.z, distance };
+      }
+    }
+    for (const squirrel of this.mafia.list) {
+      if (!squirrel.alive || squirrel.hit) continue;
+      const distance = Math.hypot(squirrel.x - impactX, squirrel.z - impactZ);
+      if (distance <= 1.65 && (!nearest || distance < nearest.distance)) {
+        nearest = { x: squirrel.x, z: squirrel.z, distance };
+      }
+    }
+    this.bombLock = nearest ? { x: nearest.x, z: nearest.z, flightTime } : null;
+
     const projected = new THREE.Vector3(impactX, groundY + 0.08, impactZ).project(this.camera);
     return {
       x: THREE.MathUtils.clamp((projected.x * 0.5 + 0.5) * 100, 5, 95),
       y: THREE.MathUtils.clamp((-projected.y * 0.5 + 0.5) * 100, 8, 88),
       visible: projected.z >= -1 && projected.z <= 1,
+      locked: Boolean(nearest),
     };
   }
 
@@ -920,6 +942,12 @@ export class GullDropGame {
     slot.vx = this.vx * 0.94;
     slot.vy = Math.min(-1.8, this.vy * 0.28);
     slot.vz = this.vz * 0.94;
+    if (this.bombLock) {
+      // A lock only corrects the inherited horizontal drift enough to center the
+      // bomb on a target already inside the predicted impact zone.
+      slot.vx = (this.bombLock.x - slot.x) / this.bombLock.flightTime;
+      slot.vz = (this.bombLock.z - slot.z) / this.bombLock.flightTime;
+    }
     slot.mesh.visible = true;
     slot.mesh.position.set(slot.x, slot.y, slot.z);
   }

@@ -144,6 +144,7 @@ type Patch = Partial<
     | "bombAimX"
     | "bombAimY"
     | "bombAimVisible"
+    | "bombAimLocked"
     | "blips"
     | "flash"
     | "lifetime"
@@ -187,6 +188,7 @@ type GameState = {
   bombAimX: number;
   bombAimY: number;
   bombAimVisible: boolean;
+  bombAimLocked: boolean;
   blips: Array<{ x: number; z: number; k: "player" | "sq" | "don" | "job" }>;
   flash: number;
   lifetime: number;
@@ -265,6 +267,7 @@ export const useGame = create<GameState>((set, get) => {
   bombAimX: 50,
   bombAimY: 78,
   bombAimVisible: true,
+  bombAimLocked: false,
   blips: [],
   flash: 0,
   lifetime: save.lifetime,
@@ -335,6 +338,7 @@ export const useGame = create<GameState>((set, get) => {
       bombAimX: 50,
       bombAimY: 78,
       bombAimVisible: true,
+      bombAimLocked: false,
       howTo: false,
       shopOpen: false,
       blotterOpen: false,

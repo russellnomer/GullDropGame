@@ -122,11 +122,11 @@
 - **Task category:** analytics
 
 ## 2026-09-11 — Fix Gull framing and poop aiming
-- **Agent time:** 44 minutes
+- **Agent time:** 51 minutes
 - **Estimated human time:** 3 hours
-- **Time savings:** 2 hours 16 minutes
-- **Savings ratio:** 4.1x
-- **Agent cost:** ~$5.50
+- **Time savings:** 2 hours 9 minutes
+- **Savings ratio:** 3.5x
+- **Agent cost:** ~$6.40
 - **Human cost equivalent:** ~$225.00
-- **Net savings:** ~$219.50
+- **Net savings:** ~$218.60
 - **Task category:** gameplay and visual bug fix
